@@ -22,20 +22,27 @@ type nmapHost struct {
 	Scripts   []nmapScript `xml:"hostscript>script"`
 }
 
-type nmapStatus struct { State string `xml:"state,attr"` }
-type nmapAddr struct { Addr string `xml:"addr,attr"`; Type string `xml:"addrtype,attr"` }
-type nmapName struct { Name string `xml:"name,attr"` }
+type nmapStatus struct{ State string `xml:"state,attr"` }
+type nmapAddr struct{ Addr string `xml:"addr,attr"`; Type string `xml:"addrtype,attr"` }
+type nmapName struct{ Name string `xml:"name,attr"` }
+
 type nmapPort struct {
-	Protocol string     `xml:"protocol,attr"`
-	PortID   int        `xml:"portid,attr"`
-	State    nmapStatus `xml:"state"`
-	Service  nmapSvc    `xml:"service"`
+	Protocol string       `xml:"protocol,attr"`
+	PortID   int          `xml:"portid,attr"`
+	State    nmapStatus   `xml:"state"`
+	Service  nmapSvc      `xml:"service"`
 	Scripts  []nmapScript `xml:"script"`
 }
-type nmapSvc struct { Name string `xml:"name,attr"`; Product string `xml:"product,attr"`; Version string `xml:"version,attr"` }
-type nmapScript struct { ID string `xml:"id,attr"`; Output string `xml:"output,attr"` }
 
-type Result struct { Hosts []models.Host }
+type nmapSvc struct {
+	Name    string `xml:"name,attr"`
+	Product string `xml:"product,attr"`
+	Version string `xml:"version,attr"`
+}
+
+type nmapScript struct{ ID string `xml:"id,attr"`; Output string `xml:"output,attr"` }
+
+type Result struct{ Hosts []models.Host }
 
 func ParseNmapXML(data []byte) (Result, error) {
 	var run nmapRun
@@ -54,11 +61,11 @@ func ParseNmapXML(data []byte) (Result, error) {
 			}
 			host.Ports = append(host.Ports, models.Port{Port: p.PortID, Protocol: p.Protocol, State: p.State.State, Service: p.Service.Name, Product: p.Service.Product, Version: p.Service.Version})
 			for _, s := range p.Scripts {
-				host.Scripts = append(host.Scripts, s.ID+": "+s.Output)
+				host.ScriptResults = append(host.ScriptResults, models.ScriptResult{ID: s.ID, Output: s.Output, Port: p.PortID, Protocol: p.Protocol, Service: p.Service.Name})
 			}
 		}
 		for _, s := range h.Scripts {
-			host.Scripts = append(host.Scripts, s.ID+": "+s.Output)
+			host.ScriptResults = append(host.ScriptResults, models.ScriptResult{ID: s.ID, Output: s.Output})
 		}
 		res.Hosts = append(res.Hosts, host)
 	}
@@ -74,7 +81,7 @@ func Merge(base, extended Result) Result {
 	for _, h := range extended.Hosts {
 		if existing, ok := byIP[h.Address]; ok {
 			existing.Ports = mergePorts(existing.Ports, h.Ports)
-			existing.Scripts = append(existing.Scripts, h.Scripts...)
+			existing.ScriptResults = mergeScripts(existing.ScriptResults, h.ScriptResults)
 			if existing.Hostname == "" {
 				existing.Hostname = h.Hostname
 			}
@@ -84,10 +91,14 @@ func Merge(base, extended Result) Result {
 		}
 	}
 	ips := make([]string, 0, len(byIP))
-	for ip := range byIP { ips = append(ips, ip) }
+	for ip := range byIP {
+		ips = append(ips, ip)
+	}
 	sort.Strings(ips)
 	out := Result{Hosts: make([]models.Host, 0, len(ips))}
-	for _, ip := range ips { out.Hosts = append(out.Hosts, *byIP[ip]) }
+	for _, ip := range ips {
+		out.Hosts = append(out.Hosts, *byIP[ip])
+	}
 	return out
 }
 
@@ -96,7 +107,9 @@ func mergePorts(a, b []models.Port) []models.Port {
 	out := make([]models.Port, 0, len(a)+len(b))
 	for _, p := range append(a, b...) {
 		k := fmt.Sprintf("%d/%s", p.Port, p.Protocol)
-		if seen[k] { continue }
+		if seen[k] {
+			continue
+		}
 		seen[k] = true
 		out = append(out, p)
 	}
@@ -104,12 +117,41 @@ func mergePorts(a, b []models.Port) []models.Port {
 	return out
 }
 
+func mergeScripts(a, b []models.ScriptResult) []models.ScriptResult {
+	seen := map[string]bool{}
+	out := make([]models.ScriptResult, 0, len(a)+len(b))
+	for _, s := range append(a, b...) {
+		k := fmt.Sprintf("%s|%d|%s|%s", s.ID, s.Port, s.Protocol, s.Output)
+		if seen[k] {
+			continue
+		}
+		seen[k] = true
+		out = append(out, s)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Port == out[j].Port {
+			return out[i].ID < out[j].ID
+		}
+		return out[i].Port < out[j].Port
+	})
+	return out
+}
+
 func firstIPv4(addrs []nmapAddr) string {
-	for _, a := range addrs { if strings.EqualFold(a.Type, "ipv4") { return a.Addr } }
-	if len(addrs) > 0 { return addrs[0].Addr }
+	for _, a := range addrs {
+		if strings.EqualFold(a.Type, "ipv4") {
+			return a.Addr
+		}
+	}
+	if len(addrs) > 0 {
+		return addrs[0].Addr
+	}
 	return ""
 }
+
 func firstHostname(h []nmapName) string {
-	if len(h) > 0 { return h[0].Name }
+	if len(h) > 0 {
+		return h[0].Name
+	}
 	return ""
 }

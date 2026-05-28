@@ -32,10 +32,16 @@ func Build(hosts []models.Host, cfg models.Config, profile models.Profile) (mode
 
 func Write(rep models.Report, workDir string) error {
 	reportDir := filepath.Join(workDir, "reports")
-	if err := os.MkdirAll(reportDir, 0o755); err != nil { return err }
+	if err := os.MkdirAll(reportDir, 0o755); err != nil {
+		return err
+	}
 	base := filepath.Join(reportDir, fmt.Sprintf("report-%d", time.Now().Unix()))
-	if err := os.WriteFile(base+".txt", []byte(rep.TextBody), 0o644); err != nil { return err }
-	if err := os.WriteFile(base+".html", []byte(rep.HTMLBody), 0o644); err != nil { return err }
+	if err := os.WriteFile(base+".txt", []byte(rep.TextBody), 0o644); err != nil {
+		return err
+	}
+	if err := os.WriteFile(base+".html", []byte(rep.HTMLBody), 0o644); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -44,22 +50,45 @@ func buildText(rep models.Report) string {
 	fmt.Fprintf(&b, "%s\n\n", rep.Subject)
 	fmt.Fprintf(&b, "Data: %s\nProfil: %s\nPodsieci: %s\nWykryte hosty: %d\n\n", rep.GeneratedAt, rep.Profile, rep.Subnets, rep.HostCount)
 	for _, h := range rep.Hosts {
-		fmt.Fprintf(&b, "Host: %s (%s)\nRyzyko: %s (%d pkt)\n", h.Address, h.Hostname, h.Risk, h.Points)
-		for _, p := range h.Ports { fmt.Fprintf(&b, "  - %d/%s %s %s %s\n", p.Port, p.Protocol, p.Service, p.Product, p.Version) }
-		for _, f := range h.Findings { fmt.Fprintf(&b, "  * %s\n", f) }
+		fmt.Fprintf(&b, "Host: %s", h.Address)
+		if h.Hostname != "" {
+			fmt.Fprintf(&b, " (%s)", h.Hostname)
+		}
+		fmt.Fprintf(&b, "\nRyzyko: %s (%d pkt)\n", h.Risk, h.Points)
+		fmt.Fprintf(&b, "Usługi:\n")
+		for _, p := range h.Ports {
+			fmt.Fprintf(&b, "  - %d/%s %s %s %s\n", p.Port, p.Protocol, p.Service, p.Product, p.Version)
+		}
+		if len(h.Findings) == 0 {
+			fmt.Fprintf(&b, "Ustalenia: brak dodatkowych ustaleń\n\n")
+			continue
+		}
+		fmt.Fprintf(&b, "Ustalenia:\n")
+		for _, f := range h.Findings {
+			fmt.Fprintf(&b, "  * %s [%s]\n", f.Title, strings.ToUpper(f.Severity))
+			fmt.Fprintf(&b, "    Dowód: %s\n", f.Evidence)
+			fmt.Fprintf(&b, "    Zalecenie: %s\n", f.Recommendation)
+		}
 		b.WriteString("\n")
 	}
 	return b.String()
 }
 
 func buildHTML(rep models.Report, templatePath string) (string, error) {
-	tpl, err := template.ParseFiles(templatePath)
+	funcs := template.FuncMap{
+		"upper": strings.ToUpper,
+	}
+	tpl, err := template.New("report.html").Funcs(funcs).ParseFiles(templatePath)
 	if err != nil {
 		const fallback = `<html><body><h1>{{.Subject}}</h1><p>{{.GeneratedAt}}</p></body></html>`
-		tpl, err = template.New("fallback").Parse(fallback)
-		if err != nil { return "", err }
+		tpl, err = template.New("fallback").Funcs(funcs).Parse(fallback)
+		if err != nil {
+			return "", err
+		}
 	}
 	var buf bytes.Buffer
-	if err := tpl.Execute(&buf, rep); err != nil { return "", err }
+	if err := tpl.Execute(&buf, rep); err != nil {
+		return "", err
+	}
 	return buf.String(), nil
 }

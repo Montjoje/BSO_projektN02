@@ -31,14 +31,29 @@ type Port struct {
 	Version  string
 }
 
+type ScriptResult struct {
+	ID       string
+	Output   string
+	Port     int
+	Protocol string
+	Service  string
+}
+
+type Finding struct {
+	Title          string
+	Evidence       string
+	Recommendation string
+	Severity       string
+}
+
 type Host struct {
-	Address  string
-	Hostname string
-	Ports    []Port
-	Scripts  []string
-	Findings []string
-	Risk     string
-	Points   int
+	Address     string
+	Hostname    string
+	Ports       []Port
+	ScriptResults []ScriptResult
+	Findings    []Finding
+	Risk        string
+	Points      int
 }
 
 type Report struct {
