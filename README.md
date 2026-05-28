@@ -40,8 +40,7 @@ BSO_projektN02/
 ├── BSO26L_PRO_etapI_MS_MZ.pdf      # sprawozdanie z etapu I
 ├── BSO26L_PRO_etapI_MS_MZ.zip      # archiwum etapu I
 ├── README.md
-├── go.mod
-└── scanner                         # opcjonalny plik binarny po lokalnej kompilacji
+└── go.mod
 ```
 
 Katalogi robocze `data/scans/`, `data/reports/` i `data/state/` nie muszą być widoczne w repozytorium. Aplikacja tworzy je podczas pracy, jeżeli są potrzebne. Plik binarny `scanner` również nie jest wymagany do zbudowania projektu ze źródeł; powstaje po wykonaniu komendy `go build`.
