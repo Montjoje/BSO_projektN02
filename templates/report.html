@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <title>{{.Subject}}</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.45; margin: 24px; }
+    h1, h2 { color: #164d7d; }
+    .meta { margin-bottom: 18px; }
+    .risk-low { color: #1b7f3b; }
+    .risk-medium { color: #b26a00; }
+    .risk-high { color: #b00020; }
+    table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; vertical-align: top; }
+    th { background: #eef4fa; }
+  </style>
+</head>
+<body>
+  <h1>{{.Subject}}</h1>
+  <div class="meta">
+    <strong>Data:</strong> {{.GeneratedAt}}<br>
+    <strong>Profil:</strong> {{.Profile}}<br>
+    <strong>Podsieci:</strong> {{.Subnets}}
+  </div>
+
+  <h2>Podsumowanie</h2>
+  <p>Wykryte hosty: <strong>{{.HostCount}}</strong></p>
+
+  <h2>Wyniki</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Host</th>
+        <th>Usługi</th>
+        <th>Ustalenia</th>
+        <th>Ryzyko</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Hosts}}
+      <tr>
+        <td>{{.Address}}{{if .Hostname}}<br><small>{{.Hostname}}</small>{{end}}</td>
+        <td>{{range .Ports}}{{.Port}}/{{.Protocol}} {{.Service}} {{.Product}} {{.Version}}<br>{{end}}</td>
+        <td>{{range .Findings}}{{.}}<br>{{end}}</td>
+        <td>{{.Risk}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</body>
+</html>

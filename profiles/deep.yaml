@@ -1,0 +1,14 @@
+name: deep
+extended: true
+nmap_args:
+  - -Pn
+  - -sV
+  - -O
+  - -T3
+nse_scripts:
+  - http-title
+  - http-headers
+  - http-methods
+  - ssl-cert
+  - ssh2-enum-algos
+  - smb-protocols

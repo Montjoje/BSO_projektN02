@@ -1,0 +1,13 @@
+subnets:
+  - 192.168.88.0/24
+profile: baseline
+work_dir: ./data
+base_timeout_seconds: 120
+extended_timeout_seconds: 300
+smtp_host: smtp.example.com
+smtp_port: 587
+smtp_user: scanner@example.com
+smtp_password: change-me
+smtp_from: scanner@example.com
+smtp_to: admin@example.com
+subject_prefix: "[BSO N02]"

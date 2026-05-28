@@ -1,0 +1,9 @@
+name: baseline
+extended: false
+nmap_args:
+  - -Pn
+  - -sV
+  - -T3
+nse_scripts:
+  - http-title
+  - ssl-cert
