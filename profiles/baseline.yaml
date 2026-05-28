@@ -1,9 +1,19 @@
 name: baseline
-extended: false
-nmap_args:
-  - -Pn
+mode: BASELINE
+description: Lekki profil diagnostyczny do cyklicznego monitoringu LAN.
+base_args:
+  - -sT
   - -sV
-  - -T3
-nse_scripts:
-  - http-title
-  - ssl-cert
+  - --version-light
+  - -T2
+  - --top-ports
+  - 100
+  - --max-retries
+  - 2
+  - -Pn
+base_scripts:
+  - default
+  - safe
+extended_args:
+extended_scripts:
+allow_intrusive: false

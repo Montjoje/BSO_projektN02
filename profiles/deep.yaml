@@ -1,14 +1,31 @@
 name: deep
-extended: true
-nmap_args:
-  - -Pn
+mode: DEEP
+description: Profil pogłębiony do dokładniejszej analizy usług, TLS, HTTP i znanych podatności.
+base_args:
+  - -sT
   - -sV
-  - -O
+  - --version-all
   - -T3
-nse_scripts:
+  - --top-ports
+  - 200
+  - --max-retries
+  - 3
+  - -Pn
+base_scripts:
+  - default
+  - safe
+extended_args:
+  - -sT
+  - -sV
+  - --version-all
+  - -T3
+  - -Pn
+extended_scripts:
+  - default
+  - safe
+  - vuln and not intrusive and not brute and not dos and not exploit
+  - ssl-enum-ciphers
+  - http-security-headers
   - http-title
-  - http-headers
-  - http-methods
-  - ssl-cert
-  - ssh2-enum-algos
-  - smb-protocols
+  - http-auth
+allow_intrusive: false
