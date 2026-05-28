@@ -1,14 +1,52 @@
 name: deep
-extended: true
-nmap_args:
-  - -Pn
+mode: DEEP
+description: Profil pogłębiony do rozszerzonej analizy usług, certyfikatów, nagłówków HTTP, protokołów i znanych podatności bez kategorii intrusive/brute/dos/exploit.
+base_args:
+  - -sT
   - -sV
-  - -O
-  - -T3
-nse_scripts:
+  - --version-light
+  - -T2
+  - --top-ports
+  - 150
+  - --max-retries
+  - 1
+  - --max-rtt-timeout
+  - 1500ms
+  - --script-timeout
+  - 30s
+  - -Pn
+base_scripts:
+  - banner
   - http-title
-  - http-headers
+  - http-server-header
+  - ssl-cert
+extended_args:
+  - -sT
+  - -sV
+  - --version-all
+  - -T3
+  - --top-ports
+  - 200
+  - --max-retries
+  - 2
+  - --max-rtt-timeout
+  - 2000ms
+  - --script-timeout
+  - 60s
+  - -Pn
+extended_scripts:
+  - banner
+  - http-title
+  - http-server-header
+  - http-security-headers
+  - http-auth
   - http-methods
   - ssl-cert
+  - ssl-enum-ciphers
   - ssh2-enum-algos
-  - smb-protocols
+  - dns-recursion
+  - ntp-info
+  - smb-os-discovery
+  - smb2-security-mode
+  - vuln and not intrusive and not brute and not dos and not exploit
+allow_intrusive: false

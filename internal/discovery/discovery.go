@@ -1,41 +1,44 @@
 package discovery
 
 import (
-	"context"
 	"fmt"
-	"os/exec"
-	"strings"
-	"time"
+	"log"
 
+	"github.com/Montjoje/BSO_projektN02/internal/models"
 	"github.com/Montjoje/BSO_projektN02/internal/parser"
+	"github.com/Montjoje/BSO_projektN02/internal/scanner"
 )
 
-func Discover(subnets []string, timeout time.Duration) ([]string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
+type Discoverer struct {
+	Runner *scanner.NmapRunner
+}
 
-	args := []string{"-sn", "-n", "-oX", "-"}
-	args = append(args, subnets...)
-	cmd := exec.CommandContext(ctx, "nmap", args...)
-	out, err := cmd.Output()
+func New(runner *scanner.NmapRunner) *Discoverer {
+	return &Discoverer{Runner: runner}
+}
+
+func (d *Discoverer) Discover(subnets []string) ([]models.Host, string, error) {
+	xmlPath, err := d.Runner.RunDiscovery(subnets)
 	if err != nil {
-		return nil, fmt.Errorf("discovery nmap: %w", err)
+		return nil, xmlPath, fmt.Errorf("błąd discovery: %w", err)
 	}
-
-	res, err := parser.ParseNmapXML(out)
+	hosts, err := parser.ParseFile(xmlPath)
 	if err != nil {
-		return nil, err
+		return nil, xmlPath, fmt.Errorf("błąd parsowania discovery: %w", err)
 	}
+	log.Printf("discovery: wykryto %d aktywnych hostów", len(hosts))
+	return hosts, xmlPath, nil
+}
 
-	ips := make([]string, 0, len(res.Hosts))
+func HostTargets(hosts []models.Host) []string {
+	targets := make([]string, 0, len(hosts))
 	seen := map[string]bool{}
-	for _, h := range res.Hosts {
-		ip := strings.TrimSpace(h.Address)
-		if ip == "" || seen[ip] {
+	for _, h := range hosts {
+		if h.IP == "" || seen[h.IP] {
 			continue
 		}
-		seen[ip] = true
-		ips = append(ips, ip)
+		seen[h.IP] = true
+		targets = append(targets, h.IP)
 	}
-	return ips, nil
+	return targets
 }
