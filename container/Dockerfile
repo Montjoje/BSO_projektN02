@@ -6,7 +6,7 @@ COPY internal/ /app/internal/
 RUN CGO_ENABLED=0 GOOS=linux go build -o /scanner ./cmd/scanner
 
 FROM alpine:3.22
-RUN apk add --no-cache nmap bash ca-certificates
+RUN apk add --no-cache nmap nmap-scripts bash ca-certificates
 WORKDIR /app
 COPY configs/ /app/configs/
 COPY profiles/ /app/profiles/

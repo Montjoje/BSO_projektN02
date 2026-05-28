@@ -2,8 +2,8 @@ subnets:
   - 192.168.88.0/24
 profile: baseline
 work_dir: ./data
-base_timeout_seconds: 120
-extended_timeout_seconds: 300
+base_timeout_seconds: 1200
+extended_timeout_seconds: 1200
 smtp_host: smtp.example.com
 smtp_port: 587
 smtp_user: scanner@example.com
