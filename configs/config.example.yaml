@@ -23,12 +23,11 @@ mail:
   skip_verify: false
 
 runtime:
-  # dry_run=true generuje przykładowy raport bez wywoływania nmap; dobre do demonstracji.
+  # dry_run=true generuje przykładowy raport bez wywoływania nmap; do demonstracji.
   dry_run: false
   no_email: false
   keep_xml: true
   nmap_path: nmap
   # once - pojedynczy skan; daemon - cykliczne skany z poziomu procesu kontenera.
-  # Dla RouterOS zgodnie ze sprawozdaniem zalecane jest once + /system scheduler.
   run_mode: once
   interval_minutes: 1440

@@ -159,6 +159,12 @@ func MergeHosts(base, extended []models.Host) []models.Host {
 		if h.State != "" && h.State != "unknown" {
 			existing.State = h.State
 		}
+		if h.AssessmentStatus != "" {
+			existing.AssessmentStatus = h.AssessmentStatus
+		}
+		if h.AssessmentMessage != "" {
+			existing.AssessmentMessage = h.AssessmentMessage
+		}
 		existing.HostScripts = append(existing.HostScripts, h.HostScripts...)
 		mergeServices(existing, h.Services)
 	}

@@ -1,6 +1,6 @@
 name: baseline
 mode: BASELINE
-description: Lekki profil diagnostyczny do cyklicznego monitoringu LAN.
+description: Profil diagnostyczny do cyklicznego monitoringu LAN; niskoinwazyjny, bez skryptów broadcast/external/brute/dos/exploit.
 base_args:
   - -sT
   - -sV
@@ -9,11 +9,17 @@ base_args:
   - --top-ports
   - 100
   - --max-retries
-  - 2
+  - 1
+  - --max-rtt-timeout
+  - 1000ms
+  - --script-timeout
+  - 20s
   - -Pn
 base_scripts:
-  - default
-  - safe
+  - banner
+  - http-title
+  - http-server-header
+  - ssl-cert
 extended_args:
 extended_scripts:
 allow_intrusive: false

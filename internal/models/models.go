@@ -51,17 +51,19 @@ type ScanProfile struct {
 }
 
 type Host struct {
-	IP          string    `json:"ip"`
-	MAC         string    `json:"mac,omitempty"`
-	Hostname    string    `json:"hostname,omitempty"`
-	Vendor      string    `json:"vendor,omitempty"`
-	State       string    `json:"state"`
-	Services    []Service `json:"services"`
-	HostScripts []Script  `json:"host_scripts,omitempty"`
-	Findings    []Finding `json:"findings"`
-	RiskScore   int       `json:"risk_score"`
-	RiskLevel   string    `json:"risk_level"`
-	ScanProfile string    `json:"scan_profile"`
+	IP                string    `json:"ip"`
+	MAC               string    `json:"mac,omitempty"`
+	Hostname          string    `json:"hostname,omitempty"`
+	Vendor            string    `json:"vendor,omitempty"`
+	State             string    `json:"state"`
+	Services          []Service `json:"services"`
+	HostScripts       []Script  `json:"host_scripts,omitempty"`
+	Findings          []Finding `json:"findings"`
+	RiskScore         int       `json:"risk_score"`
+	RiskLevel         string    `json:"risk_level"`
+	ScanProfile       string    `json:"scan_profile"`
+	AssessmentStatus  string    `json:"assessment_status"`
+	AssessmentMessage string    `json:"assessment_message,omitempty"`
 }
 
 type Service struct {
@@ -110,14 +112,16 @@ type ScanResult struct {
 	Subnets     []string      `json:"subnets"`
 	Hosts       []Host        `json:"hosts"`
 	Summary     ResultSummary `json:"summary"`
+	Warnings    []string      `json:"warnings,omitempty"`
 	Artifacts   ScanArtifacts `json:"-"`
 }
 
 type ResultSummary struct {
-	HostCount       int `json:"host_count"`
-	OpenPortCount   int `json:"open_port_count"`
-	FindingCount    int `json:"finding_count"`
-	HighRiskHosts   int `json:"high_risk_hosts"`
-	MediumRiskHosts int `json:"medium_risk_hosts"`
-	LowRiskHosts    int `json:"low_risk_hosts"`
+	HostCount        int `json:"host_count"`
+	OpenPortCount    int `json:"open_port_count"`
+	FindingCount     int `json:"finding_count"`
+	HighRiskHosts    int `json:"high_risk_hosts"`
+	MediumRiskHosts  int `json:"medium_risk_hosts"`
+	LowRiskHosts     int `json:"low_risk_hosts"`
+	UnknownRiskHosts int `json:"unknown_risk_hosts"`
 }

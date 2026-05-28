@@ -11,6 +11,18 @@ func ClassifyHosts(hosts []models.Host, openPortsThreshold int, profileName stri
 	out := make([]models.Host, 0, len(hosts))
 	for _, host := range hosts {
 		host.ScanProfile = profileName
+		if host.AssessmentStatus == "" {
+			host.AssessmentStatus = "assessed"
+		}
+
+		if isUnassessed(host.AssessmentStatus) {
+			host.RiskScore = 0
+			host.RiskLevel = "UNKNOWN"
+			host.Findings = appendOperationalFinding(host.Findings, host.AssessmentMessage)
+			out = append(out, host)
+			continue
+		}
+
 		host.Findings = AnalyzeHost(host, openPortsThreshold)
 		host.RiskScore = 0
 		for _, finding := range host.Findings {
@@ -20,6 +32,28 @@ func ClassifyHosts(hosts []models.Host, openPortsThreshold int, profileName stri
 		out = append(out, host)
 	}
 	return out
+}
+
+func isUnassessed(status string) bool {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "discovery_only", "scan_failed", "parse_failed", "not_assessed", "unknown":
+		return true
+	default:
+		return false
+	}
+}
+
+func appendOperationalFinding(findings []models.Finding, message string) []models.Finding {
+	if strings.TrimSpace(message) == "" {
+		message = "Host został wykryty w discovery, ale nie wykonano pełnej oceny portów i usług."
+	}
+	return append(findings, models.Finding{
+		Severity:       "INFO",
+		Score:          0,
+		Title:          "Host nie został w pełni oceniony",
+		Evidence:       message,
+		Recommendation: "Powtórzyć skan hosta lub sprawdzić limit czasu Nmap. Do czasu pełnego skanu nie traktować poziomu ryzyka jako niskiego.",
+	})
 }
 
 func AnalyzeHost(host models.Host, openPortsThreshold int) []models.Finding {
@@ -187,6 +221,8 @@ func BuildSummary(hosts []models.Host) models.ResultSummary {
 			summary.HighRiskHosts++
 		case "MEDIUM":
 			summary.MediumRiskHosts++
+		case "UNKNOWN":
+			summary.UnknownRiskHosts++
 		default:
 			summary.LowRiskHosts++
 		}

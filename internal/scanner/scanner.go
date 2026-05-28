@@ -106,7 +106,7 @@ func appendHostTimeout(args []string, timeout string) []string {
 }
 
 func timestamped(prefix, ext string) string {
-	return fmt.Sprintf("%s-%s.%s", prefix, time.Now().Format("20060102-150405"), ext)
+	return fmt.Sprintf("%s-%d.%s", prefix, time.Now().UnixNano(), ext)
 }
 
 func safeName(value string) string {

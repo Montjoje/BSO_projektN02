@@ -69,12 +69,24 @@ func runScanJob(cfg models.AppConfig, profile models.ScanProfile) error {
 	log.Printf("start skanu: profil=%s mode=%s subnets=%s dry_run=%t", profile.Name, profile.Mode, strings.Join(cfg.Subnets, ","), cfg.Runtime.DryRun)
 	runner := scanner.NewNmapRunner(cfg)
 	discoverer := discovery.New(runner)
+	artifacts := models.ScanArtifacts{StartedAt: startedAt}
+	warnings := make([]string, 0)
 
 	discoveredHosts, discoveryXML, err := discoverer.Discover(cfg.Subnets)
+	artifacts.DiscoveryXMLPath = discoveryXML
 	if err != nil {
-		return err
+		warnings = append(warnings, fmt.Sprintf("Etap discovery nie zakończył się poprawnie: %v", err))
+		result := models.ScanResult{
+			GeneratedAt: time.Now(),
+			Profile:     profile,
+			Subnets:     cfg.Subnets,
+			Hosts:       []models.Host{},
+			Summary:     scoring.BuildSummary(nil),
+			Warnings:    warnings,
+			Artifacts:   artifacts,
+		}
+		return finalize(cfg, result)
 	}
-	artifacts := models.ScanArtifacts{StartedAt: startedAt, DiscoveryXMLPath: discoveryXML}
 	if len(discoveredHosts) == 0 {
 		result := models.ScanResult{
 			GeneratedAt: time.Now(),
@@ -82,34 +94,23 @@ func runScanJob(cfg models.AppConfig, profile models.ScanProfile) error {
 			Subnets:     cfg.Subnets,
 			Hosts:       []models.Host{},
 			Summary:     scoring.BuildSummary(nil),
+			Warnings:    warnings,
 			Artifacts:   artifacts,
 		}
 		return finalize(cfg, result)
 	}
 
 	targets := discovery.HostTargets(discoveredHosts)
-	baseXML, err := runner.RunBaseScan(targets, profile)
-	if err != nil {
-		return err
-	}
-	artifacts.BaseXMLPath = baseXML
-	baseHosts, err := parser.ParseFile(baseXML)
-	if err != nil {
-		return err
-	}
-	merged := parser.MergeHosts(discoveredHosts, baseHosts)
+	merged, basePaths, baseWarnings := runBaseScansPerHost(runner, discoveredHosts, targets, profile)
+	warnings = append(warnings, baseWarnings...)
+	artifacts.BaseXMLPath = strings.Join(basePaths, ";")
 
 	if shouldRunExtended(profile) {
-		extendedXML, err := runner.RunExtendedScan(targets, profile)
-		if err != nil {
-			return err
-		}
-		artifacts.ExtendedXMLPath = extendedXML
-		extendedHosts, err := parser.ParseFile(extendedXML)
-		if err != nil {
-			return err
-		}
-		merged = parser.MergeHosts(merged, extendedHosts)
+		var extendedPaths []string
+		var extendedWarnings []string
+		merged, extendedPaths, extendedWarnings = runExtendedScansPerHost(runner, merged, profile)
+		warnings = append(warnings, extendedWarnings...)
+		artifacts.ExtendedXMLPath = strings.Join(extendedPaths, ";")
 	}
 
 	classified := scoring.ClassifyHosts(merged, cfg.OpenPortsThreshold, profile.Name)
@@ -119,9 +120,121 @@ func runScanJob(cfg models.AppConfig, profile models.ScanProfile) error {
 		Subnets:     cfg.Subnets,
 		Hosts:       classified,
 		Summary:     scoring.BuildSummary(classified),
+		Warnings:    warnings,
 		Artifacts:   artifacts,
 	}
 	return finalize(cfg, result)
+}
+
+func runBaseScansPerHost(runner *scanner.NmapRunner, discoveredHosts []models.Host, targets []string, profile models.ScanProfile) ([]models.Host, []string, []string) {
+	merged := prepareDiscoveryOnlyHosts(discoveredHosts)
+	paths := make([]string, 0, len(targets))
+	warnings := make([]string, 0)
+
+	for _, target := range targets {
+		baseXML, err := runner.RunBaseScan([]string{target}, profile)
+		if baseXML != "" {
+			paths = append(paths, baseXML)
+		}
+		if err != nil {
+			message := fmt.Sprintf("Skan bazowy hosta %s nie zakończył się poprawnie: %v", target, err)
+			warnings = append(warnings, message)
+			merged = markHostAssessment(merged, target, "scan_failed", message)
+			continue
+		}
+
+		baseHosts, err := parser.ParseFile(baseXML)
+		if err != nil {
+			message := fmt.Sprintf("Nie udało się sparsować wyniku skanu bazowego hosta %s: %v", target, err)
+			warnings = append(warnings, message)
+			merged = markHostAssessment(merged, target, "parse_failed", message)
+			continue
+		}
+		for i := range baseHosts {
+			baseHosts[i].AssessmentStatus = "assessed"
+			baseHosts[i].AssessmentMessage = "Skan bazowy portów i usług zakończył się poprawnie."
+		}
+		merged = parser.MergeHosts(merged, baseHosts)
+		if !hasHost(baseHosts, target) {
+			merged = markHostAssessment(merged, target, "assessed", "Skan bazowy zakończył się poprawnie, ale Nmap nie zwrócił szczegółowych usług dla hosta.")
+		}
+	}
+	return merged, paths, warnings
+}
+
+func runExtendedScansPerHost(runner *scanner.NmapRunner, hosts []models.Host, profile models.ScanProfile) ([]models.Host, []string, []string) {
+	merged := append([]models.Host(nil), hosts...)
+	paths := make([]string, 0, len(hosts))
+	warnings := make([]string, 0)
+
+	for _, host := range hosts {
+		if host.IP == "" || isUnassessedStatus(host.AssessmentStatus) {
+			continue
+		}
+		extendedXML, err := runner.RunExtendedScan([]string{host.IP}, profile)
+		if extendedXML != "" {
+			paths = append(paths, extendedXML)
+		}
+		if err != nil {
+			message := fmt.Sprintf("Skan rozszerzony hosta %s nie zakończył się poprawnie; ocena opiera się na discovery i skanie bazowym: %v", host.IP, err)
+			warnings = append(warnings, message)
+			merged = markHostAssessment(merged, host.IP, "partial", message)
+			continue
+		}
+
+		extendedHosts, err := parser.ParseFile(extendedXML)
+		if err != nil {
+			message := fmt.Sprintf("Nie udało się sparsować wyniku skanu rozszerzonego hosta %s; ocena opiera się na discovery i skanie bazowym: %v", host.IP, err)
+			warnings = append(warnings, message)
+			merged = markHostAssessment(merged, host.IP, "partial", message)
+			continue
+		}
+		for i := range extendedHosts {
+			extendedHosts[i].AssessmentStatus = "assessed"
+			extendedHosts[i].AssessmentMessage = "Skan bazowy i rozszerzony zakończyły się poprawnie."
+		}
+		merged = parser.MergeHosts(merged, extendedHosts)
+	}
+	return merged, paths, warnings
+}
+
+func prepareDiscoveryOnlyHosts(hosts []models.Host) []models.Host {
+	out := make([]models.Host, 0, len(hosts))
+	for _, host := range hosts {
+		host.AssessmentStatus = "discovery_only"
+		host.AssessmentMessage = "Host został wykryty w discovery, ale skan portów i usług nie został jeszcze zakończony."
+		out = append(out, host)
+	}
+	return out
+}
+
+func markHostAssessment(hosts []models.Host, ip, status, message string) []models.Host {
+	for i := range hosts {
+		if hosts[i].IP == ip {
+			hosts[i].AssessmentStatus = status
+			hosts[i].AssessmentMessage = message
+			return hosts
+		}
+	}
+	return append(hosts, models.Host{IP: ip, State: "unknown", AssessmentStatus: status, AssessmentMessage: message})
+}
+
+func hasHost(hosts []models.Host, ip string) bool {
+	for _, host := range hosts {
+		if host.IP == ip {
+			return true
+		}
+	}
+	return false
+}
+
+func isUnassessedStatus(status string) bool {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "discovery_only", "scan_failed", "parse_failed", "not_assessed", "unknown":
+		return true
+	default:
+		return false
+	}
 }
 
 func finalize(cfg models.AppConfig, result models.ScanResult) error {

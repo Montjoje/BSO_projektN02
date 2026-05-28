@@ -32,13 +32,13 @@ BSO_projektN02/
 ## 2. Profile skanowania
 
 ### `baseline`
-Profil diagnostyczny do cyklicznego monitoringu. Używa skanu TCP connect, lekkiego rozpoznania wersji usług i skryptów `default,safe`.
+Profil diagnostyczny do cyklicznego monitoringu. Jest niskoinwazyjny i dostosowany do pracy na urządzeniu brzegowym: wykonuje discovery, lekki skan TCP connect, ograniczone rozpoznanie wersji usług oraz jawnie wybrane, bezpieczne skrypty NSE (`banner`, `http-title`, `http-server-header`, `ssl-cert`). Nie używa szerokich kategorii `broadcast`, `external`, `brute`, `dos`, `exploit` ani `intrusive`, ponieważ profil diagnostyczny ma nadawać się do automatycznego wykonywania.
 
 ### `deep`
-Profil pogłębiony. Rozszerza skan o dokładniejsze rozpoznanie wersji, wybrane skrypty HTTP/TLS i kategorię `vuln` z wykluczeniem kategorii `intrusive`, `brute`, `dos` oraz `exploit`.
+Profil pogłębiony. Rozszerza analizę o dokładniejsze rozpoznanie usług, HTTP, TLS, SSH, DNS, NTP, SMB oraz wybrane testy podatności przez wyrażenie `vuln and not intrusive and not brute and not dos and not exploit`. Jest przeznaczony do uruchamiania na żądanie lub rzadziej niż profil diagnostyczny.
 
 ### `pentest`
-Profil pentestowy. Może uruchamiać bardziej agresywne kategorie NSE, w tym `intrusive` i `exploit`. Powinien być używany wyłącznie świadomie, w autoryzowanym oknie serwisowym.
+Profil pentestowy. Może uruchamiać bardziej agresywne kategorie NSE, w tym `intrusive`, `exploit`, `dos` i `brute`. Powinien być używany wyłącznie świadomie, w autoryzowanym oknie serwisowym, zgodnie z ograniczeniami bezpieczeństwa opisanymi w etapie I.
 
 ## 3. Konfiguracja
 
@@ -195,3 +195,16 @@ Progi ryzyka są zgodne z etapem I:
 - Profil `pentest` nie powinien działać cyklicznie.
 - Hasła SMTP nie powinny być trzymane w repozytorium; w praktyce należy przekazywać je jako zmienne środowiskowe albo uzupełniać w RouterOS dopiero na urządzeniu testowym.
 - Rozwiązanie nie wprowadza automatycznych zmian na urządzeniach końcowych; raport ma charakter diagnostyczny.
+- Skan bazowy i rozszerzony wykonywany jest per host, a nie jednym dużym wywołaniem Nmapa dla całej podsieci. Dzięki temu problem z jednym urządzeniem nie unieważnia wyników pozostałych hostów.
+- Jeśli skan konkretnego hosta przekroczy limit czasu, aplikacja nie oznacza go myląco jako `LOW`. Host otrzymuje status `UNKNOWN`, `assessment_status=scan_failed` oraz informacyjne ustalenie z zaleceniem powtórzenia skanu. Raport pozostaje częściowy, ale jasno odróżnia hosty ocenione od nieocenionych.
+
+## 10. Zachowanie przy niepełnych skanach
+
+Wyniki discovery i wyniki skanu usług są rozdzielone. Host wykryty w discovery nie jest automatycznie traktowany jako bezpieczny. Jeżeli nie uda się wykonać skanu portów/usług dla danego adresu, raport pokazuje:
+
+- `assessment_status=scan_failed`, `parse_failed` albo `discovery_only`,
+- `risk_level=UNKNOWN`,
+- komunikat operacyjny w sekcji ostrzeżeń,
+- rekomendację powtórzenia skanu lub zwiększenia limitu czasu.
+
+Dopiero host z `assessment_status=assessed` może otrzymać zwykły poziom ryzyka `LOW`, `MEDIUM` albo `HIGH`.
