@@ -4,15 +4,23 @@
   <meta charset="utf-8">
   <title>{{.Subject}}</title>
   <style>
-    body { font-family: Arial, sans-serif; line-height: 1.45; margin: 24px; }
+    body { font-family: Arial, sans-serif; line-height: 1.45; margin: 24px; color: #222; }
     h1, h2 { color: #164d7d; }
     .meta { margin-bottom: 18px; }
-    .risk-low { color: #1b7f3b; }
-    .risk-medium { color: #b26a00; }
-    .risk-high { color: #b00020; }
+    .risk-low { color: #1b7f3b; font-weight: bold; }
+    .risk-medium { color: #b26a00; font-weight: bold; }
+    .risk-high { color: #b00020; font-weight: bold; }
     table { border-collapse: collapse; width: 100%; margin-top: 10px; }
     th, td { border: 1px solid #ccc; padding: 8px; text-align: left; vertical-align: top; }
     th { background: #eef4fa; }
+    .finding { margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px dashed #ddd; }
+    .finding:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+    .label { font-weight: bold; color: #164d7d; }
+    ul.services { margin: 0; padding-left: 18px; }
+    ul.services li { margin-bottom: 4px; }
+    .sev-low { color: #1b7f3b; font-weight: bold; }
+    .sev-medium { color: #b26a00; font-weight: bold; }
+    .sev-high { color: #b00020; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -32,17 +40,39 @@
       <tr>
         <th>Host</th>
         <th>Usługi</th>
-        <th>Ustalenia</th>
+        <th>Ustalenia i zalecenia</th>
         <th>Ryzyko</th>
       </tr>
     </thead>
     <tbody>
       {{range .Hosts}}
       <tr>
-        <td>{{.Address}}{{if .Hostname}}<br><small>{{.Hostname}}</small>{{end}}</td>
-        <td>{{range .Ports}}{{.Port}}/{{.Protocol}} {{.Service}} {{.Product}} {{.Version}}<br>{{end}}</td>
-        <td>{{range .Findings}}{{.}}<br>{{end}}</td>
-        <td>{{.Risk}}</td>
+        <td>
+          {{.Address}}
+          {{if .Hostname}}<br><small>{{.Hostname}}</small>{{end}}
+          <br><small>{{.Points}} pkt</small>
+        </td>
+        <td>
+          <ul class="services">
+          {{range .Ports}}
+            <li>{{.Port}}/{{.Protocol}} {{.Service}} {{.Product}} {{.Version}}</li>
+          {{end}}
+          </ul>
+        </td>
+        <td>
+          {{if .Findings}}
+            {{range .Findings}}
+            <div class="finding">
+              <div><span class="label">Problem:</span> {{.Title}} <span class="sev-{{.Severity}}">[{{upper .Severity}}]</span></div>
+              <div><span class="label">Dowód:</span> {{.Evidence}}</div>
+              <div><span class="label">Zalecenie:</span> {{.Recommendation}}</div>
+            </div>
+            {{end}}
+          {{else}}
+            Brak dodatkowych ustaleń.
+          {{end}}
+        </td>
+        <td class="risk-{{if eq .Risk "HIGH"}}high{{else if eq .Risk "MEDIUM"}}medium{{else}}low{{end}}">{{.Risk}}</td>
       </tr>
       {{end}}
     </tbody>
