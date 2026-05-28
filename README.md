@@ -6,9 +6,19 @@ Implementacja została przygotowana zgodnie z założeniami z etapu I: lekki age
 
 ## 1. Struktura repozytorium
 
+Aktualna struktura repozytorium na GitHubie jest płaska na poziomie katalogu głównego: dokumentacja z etapu I znajduje się bezpośrednio w repozytorium, a nie w osobnym katalogu `docs/`.
+
 ```text
 BSO_projektN02/
-├── cmd/scanner/main.go             # punkt wejścia aplikacji
+├── cmd/
+│   └── scanner/
+│       └── main.go                 # punkt wejścia aplikacji
+├── configs/
+│   ├── config.yaml                 # domyślna konfiguracja uruchomieniowa
+│   └── config.example.yaml         # przykładowa konfiguracja
+├── container/
+│   ├── Dockerfile                  # definicja obrazu kontenera
+│   └── entrypoint.sh               # skrypt startowy kontenera
 ├── internal/
 │   ├── config/                     # config.yaml + zmienne środowiskowe + profile
 │   ├── discovery/                  # lekki skan hostów aktywnych
@@ -18,16 +28,23 @@ BSO_projektN02/
 │   ├── reporting/                  # raport HTML, TXT, JSON
 │   ├── mailer/                     # SMTP/SMTPS
 │   └── models/                     # wspólny model danych
-├── configs/config.example.yaml
-├── profiles/baseline.yaml
-├── profiles/deep.yaml
-├── profiles/pentest.yaml
-├── container/Dockerfile
-├── container/entrypoint.sh
-├── routeros/install.rsc
-├── docs/BSO26L_PRO_etapI_MS_MZ.pdf
-└── .github/workflows/container.yml
+├── profiles/
+│   ├── baseline.yaml               # profil diagnostyczny
+│   ├── deep.yaml                   # profil pogłębiony
+│   └── pentest.yaml                # profil pentestowy
+├── routeros/
+│   └── install.rsc                 # skrypt bootstrapu dla RouterOS
+├── templates/
+│   └── report.html                 # szablon raportu HTML
+├── .gitignore
+├── BSO26L_PRO_etapI_MS_MZ.pdf      # sprawozdanie z etapu I
+├── BSO26L_PRO_etapI_MS_MZ.zip      # archiwum etapu I
+├── README.md
+├── go.mod
+└── scanner                         # opcjonalny plik binarny po lokalnej kompilacji
 ```
+
+Katalogi robocze `data/scans/`, `data/reports/` i `data/state/` nie muszą być widoczne w repozytorium. Aplikacja tworzy je podczas pracy, jeżeli są potrzebne. Plik binarny `scanner` również nie jest wymagany do zbudowania projektu ze źródeł; powstaje po wykonaniu komendy `go build`.
 
 ## 2. Profile skanowania
 
